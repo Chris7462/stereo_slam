@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.8)
 project(stereo_slam)
 
+set(CMAKE_BUID_TYPE "Release")
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -14,21 +16,42 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(Sophus REQUIRED)
+find_package(g2o REQUIRED)
 
 # visual odometry library
 add_library(visual_odom SHARED
-  src/visual_odometry.cpp)
+  src/visual_odometry.cpp
+  src/config.cpp
+  src/dataset.cpp
+  src/camera.cpp
+  src/frontend.cpp
+  src/frame.cpp
+  src/feature.cpp
+  src/mappoint.cpp)
 
 target_include_directories(visual_odom
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
+    $<INSTALL_INTERFACE:include>
+    ${OpenCV_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIR})
+
+target_link_libraries(visual_odom
+  PUBLIC
+    opencv_core
+    opencv_features2d
+    opencv_video
+    Sophus::Sophus
+    Eigen3::Eigen
+    g2o::core
+    g2o::solver_dense)
 
 install(TARGETS visual_odom
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin
   COMPONENT library)
-  #DESTINATION lib/${PROJECT_NAME})
 
 # exectable
 add_executable(stereo_slam_node
@@ -38,8 +61,7 @@ add_executable(stereo_slam_node
 target_include_directories(stereo_slam_node
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-    ${EIGEN3_INCLUDE_DIR})
+    $<INSTALL_INTERFACE:include>)
 
 ament_target_dependencies(stereo_slam_node
   PUBLIC
@@ -49,7 +71,6 @@ ament_target_dependencies(stereo_slam_node
 
 target_link_libraries(stereo_slam_node
   PUBLIC
-    opencv_core
     visual_odom)
 
 target_compile_features(stereo_slam_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17

@@ -7,15 +7,20 @@
 // c++ header
 #include <queue>
 #include <mutex>
+#include <memory>
 
 // opencv header
 #include <opencv2/core.hpp>
+
+// local header
+#include "stereo_slam/visual_odometry.hpp"
+#include "stereo_slam/dataset.hpp"
 
 
 class SlamNode: public rclcpp::Node
 {
   public:
-    SlamNode();
+    SlamNode(VisualOdometry::Ptr& vo);
     void image_processing();
 
   private:
@@ -30,4 +35,8 @@ class SlamNode: public rclcpp::Node
     std::queue<sensor_msgs::msg::Image::ConstSharedPtr> imgLeftBuf_;
     std::queue<sensor_msgs::msg::Image::ConstSharedPtr> imgRightBuf_;
     std::mutex img_mutex_;
+
+    Dataset::Ptr dataset_;
+
+    VisualOdometry::Ptr pvo_;
 };

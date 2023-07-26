@@ -4,9 +4,11 @@
 // c++ header
 #include <chrono>
 #include <thread>
+#include <vector>
 
 // local header
 #include "stereo_slam/slam_node.hpp"
+#include "stereo_slam/common.hpp"
 
 
 void SlamNode::leftCameraHandler(const sensor_msgs::msg::Image::ConstSharedPtr leftCameraMsg)
@@ -32,9 +34,18 @@ cv::Mat SlamNode::getImageFromMsg(const sensor_msgs::msg::Image::ConstSharedPtr&
   return ptr->image;
 }
 
-SlamNode::SlamNode()
-  : Node("slam_node")
+SlamNode::SlamNode(VisualOdometry::Ptr& vo)
+  : Node("slam_node"), pvo_{vo}
 {
+  //declare_parameter("left_proj", rclcpp::PARAMETER_DOUBLE_ARRAY);
+  //declare_parameter("right_proj", rclcpp::PARAMETER_DOUBLE_ARRAY);
+  //rclcpp::Parameter left_projection_param = get_parameter("left_proj");
+  //rclcpp::Parameter right_projection_param = get_parameter("right_proj");
+  //std::vector<double> left_projection = left_projection_param.as_double_array();
+  //std::vector<double> right_projection = right_projection_param.as_double_array();
+
+  pvo_->Init();
+
   subLeftImg_ = create_subscription<sensor_msgs::msg::Image>(
     "kitti/camera_gray_left/image_raw", 100,
     std::bind(&SlamNode::leftCameraHandler, this, std::placeholders::_1));
@@ -72,13 +83,16 @@ void SlamNode::image_processing()
           imgRightBuf_.pop();
 
           if (!img_left.empty() && !img_right.empty()) {
-            RCLCPP_INFO(get_logger(), "Got both images!!!");
+            cv::Mat img_left_resized, img_right_resized;
+            cv::resize(img_left, img_left_resized, cv::Size(), 0.5, 0.5, cv::INTER_NEAREST);
+            cv::resize(img_right, img_right_resized, cv::Size(), 0.5, 0.5, cv::INTER_NEAREST);
+            pvo_->PushData(img_left_resized, img_right_resized);
           }
         }
       }
     }
 
-    std::chrono::milliseconds dura(1);
+    std::chrono::milliseconds dura(2);
     std::this_thread::sleep_for(dura);
   }
 }
