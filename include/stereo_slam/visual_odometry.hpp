@@ -10,6 +10,7 @@
 // local header
 #include "stereo_slam/dataset.hpp"
 #include "stereo_slam/frontend.hpp"
+#include "stereo_slam/backend.hpp"
 
 
 class VisualOdometry
@@ -53,8 +54,7 @@ class VisualOdometry
 
     Dataset::Ptr dataset_;
     Frontend::Ptr frontend_;
-
-//  Backend::Ptr backend_;
-//  Map::Ptr map_;
+    Backend::Ptr backend_;
+    Map::Ptr map_;
 //  Viewer::Ptr viewer_;
 };

@@ -7,6 +7,7 @@
 #include <Eigen/Core>
 
 // define types
+using Mat22 = Eigen::Matrix<double, 2, 2>;
 using Mat33 = Eigen::Matrix<double, 3, 3>;
 using Mat34 = Eigen::Matrix<double, 3, 4>;
 using MatXX = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;

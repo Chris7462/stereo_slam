@@ -34,10 +34,12 @@ class MapPoint
 
     Vec3 pos_ = Vec3::Zero();  // Position in world
 
-  private:
     size_t id_ = 2;  // ID
-    bool is_outlier_ = false;
-    std::mutex data_mutex_;
     int observed_times_ = 0;  // being observed by feature matching algo.
+
+    bool is_outlier_ = false;
+
+  private:
+    std::mutex data_mutex_;
     std::list<std::weak_ptr<Feature>> observations_;
 };

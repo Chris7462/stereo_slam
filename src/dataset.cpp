@@ -21,7 +21,7 @@ bool Dataset::Init() {
   // read camera intrinsics and extrinsics
   std::ifstream fin(dataset_path_ + "/calib.txt");
   if (!fin) {
-    std::cout << "cannot find " << dataset_path_ << "/calib.txt!";
+    std::cout << "cannot find " << dataset_path_ << "/calib.txt!" << std::endl;
     return false;
   }
 

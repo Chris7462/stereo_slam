@@ -4,7 +4,7 @@ project(stereo_slam)
 set(CMAKE_BUID_TYPE "Release")
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-O3 -Wall -Wextra -Wpedantic)
 endif()
 
 # find dependencies
@@ -29,7 +29,9 @@ add_library(visual_odom SHARED
   src/frontend.cpp
   src/frame.cpp
   src/feature.cpp
-  src/mappoint.cpp)
+  src/mappoint.cpp
+  src/map.cpp
+  src/backend.cpp)
 
 target_include_directories(visual_odom
   PUBLIC
@@ -46,7 +48,8 @@ target_link_libraries(visual_odom
     Sophus::Sophus
     Eigen3::Eigen
     g2o::core
-    g2o::solver_dense)
+    g2o::solver_dense
+    g2o::solver_csparse)
 
 install(TARGETS visual_odom
   ARCHIVE DESTINATION lib

@@ -10,7 +10,7 @@ bool Config::SetParameterFile(const std::string& filename)
   }
   config_->file_ = cv::FileStorage(filename.c_str(), cv::FileStorage::READ);
   if (config_->file_.isOpened() == false) {
-    std::cout << "parameter file " << filename << " does not exist.";
+    std::cout << "parameter file " << filename << " does not exist." << std::endl;
     config_->file_.release();
     return false;
   }

@@ -7,6 +7,7 @@
 
 // g2o header
 #include <g2o/core/block_solver.h>
+#include <g2o/core/sparse_optimizer.h>
 #include <g2o/core/optimization_algorithm_levenberg.h>
 #include <g2o/core/robust_kernel_impl.h>
 #include <g2o/solvers/dense/linear_solver_dense.h>
@@ -248,7 +249,7 @@ bool Frontend::InsertKeyframe()
   }
   // current frame is a new keyframe
   current_frame_->SetKeyFrame();
-  //map_->InsertKeyFrame(current_frame_);
+  map_->InsertKeyFrame(current_frame_);
 
   std::cout << "Set frame " << current_frame_->id_ << " as keyframe " << current_frame_->keyframe_id_ << std::endl;
 
@@ -260,7 +261,7 @@ bool Frontend::InsertKeyframe()
   // triangulate map points
   TriangulateNewPoints();
   // update backend because we have a new keyframe
-  //backend_->UpdateMap();
+  backend_->UpdateMap();
 
   //if (viewer_) viewer_->UpdateMap();
 
@@ -304,7 +305,7 @@ int Frontend::TriangulateNewPoints()
 
         current_frame_->features_left_[i]->map_point_ = new_map_point;
         current_frame_->features_right_[i]->map_point_ = new_map_point;
-        //map_->InsertMapPoint(new_map_point);
+        map_->InsertMapPoint(new_map_point);
         cnt_triangulated_pts++;
       }
     }
@@ -330,7 +331,7 @@ int Frontend::DetectFeatures()
     ++cnt_detected;
   }
 
-  std::cout << "Detect " << cnt_detected << " new features";
+  std::cout << "Detect " << cnt_detected << " new features" << std::endl;
   return cnt_detected;
 }
 
@@ -400,12 +401,12 @@ bool Frontend::BuildInitMap() {
       current_frame_->features_left_[i]->map_point_ = new_map_point;
       current_frame_->features_right_[i]->map_point_ = new_map_point;
       cnt_init_landmarks++;
-      //map_->InsertMapPoint(new_map_point);
+      map_->InsertMapPoint(new_map_point);
     }
   }
   current_frame_->SetKeyFrame();
-  //map_->InsertKeyFrame(current_frame_);
-  //backend_->UpdateMap();
+  map_->InsertKeyFrame(current_frame_);
+  backend_->UpdateMap();
 
   std::cout << "Initial map created with " << cnt_init_landmarks << " map points" << std::endl;
 

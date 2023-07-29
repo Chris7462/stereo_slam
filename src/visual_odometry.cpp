@@ -6,7 +6,8 @@
 #include "stereo_slam/config.hpp"
 
 VisualOdometry::VisualOdometry(std::string& config_file)
-  : exit_{false}, config_file_{config_file}, dataset_{nullptr}, frontend_{nullptr}
+  : exit_{false}, config_file_{config_file}, dataset_{nullptr},
+    frontend_{nullptr}, backend_{nullptr}, map_{nullptr}
 {
 }
 
@@ -23,17 +24,17 @@ bool VisualOdometry::Init()
 
   // create components and links
   frontend_ = Frontend::Ptr(new Frontend);
-  //backend_ = Backend::Ptr(new Backend);
-  //map_ = Map::Ptr(new Map);
+  backend_ = Backend::Ptr(new Backend);
+  map_ = Map::Ptr(new Map);
   //viewer_ = Viewer::Ptr(new Viewer);
 
-  //frontend_->SetBackEnd(backend_);
-  //frontend_->SetMap(map_);
+  frontend_->SetBackend(backend_);
+  frontend_->SetMap(map_);
   //frontend_->SetViewer(viewer_);
   frontend_->SetCameras(dataset_->GetCamera(0), dataset_->GetCamera(1));
 
-  //backend_->SetMap(map_);
-  //backend_->SetCameras(dataset_->GetCamera(0), dataset_->GetCamera(1));
+  backend_->SetMap(map_);
+  backend_->SetCameras(dataset_->GetCamera(0), dataset_->GetCamera(1));
 
   //viewer_->SetMap(map_);
 
@@ -60,7 +61,7 @@ void VisualOdometry::Shutdown()
 {
   std::cout << "VO exit" << std::endl;
   exit_ = true;
-  //backend_->Stop();
+  backend_->Stop();
   //viewer_->Close();
 }
 

@@ -43,4 +43,7 @@ inline bool triangulation(const std::vector<Sophus::SE3d>& poses,
 }
 
 // converters
-inline Vec2 toVec2(const cv::Point2f p) { return Vec2(p.x, p.y); }
+inline Vec2 toVec2(const cv::Point2f p)
+{
+  return Vec2(p.x, p.y);
+}
