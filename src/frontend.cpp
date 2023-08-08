@@ -14,18 +14,17 @@
 
 // local header
 #include "stereo_slam/algorithm.hpp"
-#include "stereo_slam/config.hpp"
 #include "stereo_slam/frontend.hpp"
 #include "stereo_slam/feature.hpp"
 #include "stereo_slam/mappoint.hpp"
 #include "stereo_slam/g2o_types.hpp"
 
 
-Frontend::Frontend()
+Frontend::Frontend(double num_features, double num_features_init)
 {
-  gftt_ = cv::GFTTDetector::create(Config::Get<int>("num_features"), 0.01, 20);
-  num_features_ = Config::Get<int>("num_features");
-  num_features_init_ = Config::Get<int>("num_features_init");
+  gftt_ = cv::GFTTDetector::create(num_features, 0.01, 20);
+  num_features_ = num_features;
+  num_features_init_ = num_features_init;
 }
 
 bool Frontend::Addframe(Frame::Ptr frame)
@@ -72,10 +71,10 @@ bool Frontend::StereoInit()
   bool build_map_success = BuildInitMap();
   if (build_map_success) {
     status_ = FrontendStatus::TRACKING_GOOD;
-    //if (viewer_) {
-    //  viewer_->AddCurrentFrame(current_frame_);
-    //  viewer_->UpdateMap();
-    //}
+    if (viewer_) {
+     viewer_->AddCurrentFrame(current_frame_);
+     viewer_->UpdateMap();
+    }
     return true;
   }
   return false;
@@ -104,13 +103,14 @@ bool Frontend::Track()
   InsertKeyframe();
   relative_motion_ = current_frame_->Pose() * last_frame_->Pose().inverse();
 
-  //if (viewer_) {
-  //  viewer_->AddCurrentFrame(current_frame_);
-  //}
+  if (viewer_) {
+   viewer_->AddCurrentFrame(current_frame_);
+  }
   return true;
 }
 
-bool Frontend::Reset() {
+bool Frontend::Reset()
+{
   std::cout << "Reset is not implemented." << std::endl;
   return true;
 }
@@ -263,7 +263,7 @@ bool Frontend::InsertKeyframe()
   // update backend because we have a new keyframe
   backend_->UpdateMap();
 
-  //if (viewer_) viewer_->UpdateMap();
+  if (viewer_) viewer_->UpdateMap();
 
   return true;
 }
@@ -286,7 +286,8 @@ int Frontend::TriangulateNewPoints()
   for (size_t i = 0; i < current_frame_->features_left_.size(); ++i) {
     if (current_frame_->features_left_[i]->map_point_.expired() &&
       current_frame_->features_right_[i] != nullptr) {
-      // 左图的特征点未关联地图点且存在右图匹配点，尝试三角化
+      // The feature points of the left map are not associated with map points and
+      // there are right map matches, try triangulation
       std::vector<Vec3> points{
         camera_left_->pixel2camera(
           Vec2(current_frame_->features_left_[i]->position_.pt.x,
@@ -376,7 +377,8 @@ int Frontend::FindFeaturesInRight()
   return num_good_pts;
 }
 
-bool Frontend::BuildInitMap() {
+bool Frontend::BuildInitMap()
+{
   std::vector<Sophus::SE3d> poses{camera_left_->pose(), camera_right_->pose()};
   size_t cnt_init_landmarks = 0;
   for (size_t i = 0; i < current_frame_->features_left_.size(); ++i) {

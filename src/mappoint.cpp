@@ -8,12 +8,14 @@ MapPoint::MapPoint(size_t id, Vec3 position)
 {
 }
 
-Vec3 MapPoint::Pos() {
+Vec3 MapPoint::Pos()
+{
   std::unique_lock<std::mutex> lck(data_mutex_);
   return pos_;
 }
 
-void MapPoint::SetPos(const Vec3& pos) {
+void MapPoint::SetPos(const Vec3& pos)
+{
   std::unique_lock<std::mutex> lck(data_mutex_);
   pos_ = pos;
 };
@@ -28,8 +30,7 @@ void MapPoint::AddObservation(std::shared_ptr<Feature> feature)
 void MapPoint::RemoveObservation(std::shared_ptr<Feature> feat)
 {
   std::unique_lock<std::mutex> lck(data_mutex_);
-  for (auto iter = observations_.begin(); iter != observations_.end();
-    iter++) {
+  for (auto iter = observations_.begin(); iter != observations_.end(); iter++) {
     if (iter->lock() == feat) {
       observations_.erase(iter);
       feat->map_point_.reset();

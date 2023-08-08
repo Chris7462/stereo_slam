@@ -15,15 +15,14 @@ int main(int argc, char* argv[])
 {
   rclcpp::init(argc, argv);
 
-  std::string config_file {"./src/stereo_slam/config/default.yaml"};
-  auto vo_ptr {std::make_shared<VisualOdometry>(config_file)};
+  auto vo_ptr {std::make_shared<VisualOdometry>()};
 
   auto slam_ptr {std::make_shared<SlamNode>(vo_ptr)};
 
   // start the SLAM thread
   std::thread slamthread(&VisualOdometry::Run, vo_ptr);
   std::thread image_processing(&SlamNode::image_processing, slam_ptr);
-
+  std::thread visualize(&SlamNode::pubVisualizeData, slam_ptr);
   rclcpp::spin(slam_ptr);
   rclcpp::shutdown();
 

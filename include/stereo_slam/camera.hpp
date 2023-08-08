@@ -6,6 +6,7 @@
 #include "stereo_slam/camera.hpp"
 #include "stereo_slam/common.hpp"
 
+
 class Camera
 {
   public:

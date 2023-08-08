@@ -12,42 +12,31 @@
 #include "stereo_slam/dataset.hpp"
 
 
-Dataset::Dataset(const std::string& dataset_path)
-  : new_img_available_{false}, dataset_path_(dataset_path), current_image_index_(0), cameras_(std::vector<Camera::Ptr>())
+Dataset::Dataset()
+  : new_img_available_{false}, current_image_index_(0), cameras_(std::vector<Camera::Ptr>())
 {
 }
 
-bool Dataset::Init() {
-  // read camera intrinsics and extrinsics
-  std::ifstream fin(dataset_path_ + "/calib.txt");
-  if (!fin) {
-    std::cout << "cannot find " << dataset_path_ << "/calib.txt!" << std::endl;
-    return false;
-  }
-
-  for (int i = 0; i < 4; ++i) {
-    char camera_name[3];
-    for (int k = 0; k < 3; ++k) {
-        fin >> camera_name[k];
-    }
-    double projection_data[12];
-    for (int k = 0; k < 12; ++k) {
-        fin >> projection_data[k];
-    }
+bool Dataset::Init(const std::vector<std::vector<double>>& projections)
+{
+  int i = 0;
+  // read in camera info
+  for (auto& projection: projections) {
     Mat33 K;
-    K << projection_data[0], projection_data[1], projection_data[2],
-        projection_data[4], projection_data[5], projection_data[6],
-        projection_data[8], projection_data[9], projection_data[10];
+    K << projection[0], projection[1], projection[2],
+         projection[4], projection[5], projection[6],
+         projection[8], projection[9], projection[10];
     Vec3 t;
-    t << projection_data[3], projection_data[7], projection_data[11];
+    t << projection[3], projection[7], projection[11];
     t = K.inverse() * t;
     K = K * 0.5;
     Camera::Ptr new_camera(new Camera(K(0, 0), K(1, 1), K(0, 2), K(1, 2),
                                       t.norm(), Sophus::SE3d(Sophus::SO3d(), t)));
     cameras_.push_back(new_camera);
     std::cout << "Camera " << i << " extrinsics: " << t.transpose() << std::endl << std::flush;
+    ++i;
   }
-  fin.close();
+
   current_image_index_ = 0;
   return true;
 }
@@ -66,7 +55,7 @@ Frame::Ptr Dataset::NextFrame()
     auto new_frame = Frame::CreateFrame();
     new_frame->left_img_ = image_left;
     new_frame->right_img_ = image_right;
-    current_image_index_++;
+    ++current_image_index_;
 
     // sanity check
     if (imgLeftResized_.empty() || imgRightResized_.empty()) {

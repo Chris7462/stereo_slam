@@ -3,40 +3,37 @@
 #include <thread>
 
 #include "stereo_slam/visual_odometry.hpp"
-#include "stereo_slam/config.hpp"
 
-VisualOdometry::VisualOdometry(std::string& config_file)
-  : exit_{false}, config_file_{config_file}, dataset_{nullptr},
+
+VisualOdometry::VisualOdometry()
+  : exit_{false}, dataset_{nullptr},
     frontend_{nullptr}, backend_{nullptr}, map_{nullptr}
 {
 }
 
-bool VisualOdometry::Init()
+bool VisualOdometry::Init(const std::vector<std::vector<double>>& projections, double num_features, double num_features_init)
 {
-  // read from config file
-  if (Config::SetParameterFile(config_file_) == false) {
-    return false;
-  }
 
-  dataset_ = Dataset::Ptr(new Dataset(Config::Get<std::string>("dataset_dir")));
-  bool init_dataset = dataset_->Init();
+  // Read datata set from projections
+  dataset_ = Dataset::Ptr(new Dataset);
+  bool init_dataset = dataset_->Init(projections);
   std::cout << "Dataset inited? " << (init_dataset ? "True" : "False") << std::endl;
 
   // create components and links
-  frontend_ = Frontend::Ptr(new Frontend);
+  frontend_ = Frontend::Ptr(new Frontend(num_features, num_features_init));
   backend_ = Backend::Ptr(new Backend);
   map_ = Map::Ptr(new Map);
-  //viewer_ = Viewer::Ptr(new Viewer);
+  viewer_ = Viewer::Ptr(new Viewer);
 
   frontend_->SetBackend(backend_);
   frontend_->SetMap(map_);
-  //frontend_->SetViewer(viewer_);
+  frontend_->SetViewer(viewer_);
   frontend_->SetCameras(dataset_->GetCamera(0), dataset_->GetCamera(1));
 
   backend_->SetMap(map_);
   backend_->SetCameras(dataset_->GetCamera(0), dataset_->GetCamera(1));
 
-  //viewer_->SetMap(map_);
+  viewer_->SetMap(map_);
 
   return true;
 }
@@ -46,7 +43,7 @@ void VisualOdometry::Run()
   while (!exit_) {
     // if we have data in the queue
     if (dataset_->new_img_available_) {
-      std::cout << "VO is running" << std::endl;
+      // std::cout << "VO is running" << std::endl;
       if (Step() == false) {
         continue;
       }
@@ -62,7 +59,7 @@ void VisualOdometry::Shutdown()
   std::cout << "VO exit" << std::endl;
   exit_ = true;
   backend_->Stop();
-  //viewer_->Close();
+  viewer_->Close();
 }
 
 FrontendStatus VisualOdometry::GetFrontendStatus() const
@@ -91,4 +88,9 @@ void VisualOdometry::PushData(cv::Mat& img_left_resize, cv::Mat& img_right_resiz
   dataset_->imgLeftResized_.push(img_left_resize);
   dataset_->imgRightResized_.push(img_right_resize);
   dataset_->new_img_available_ = true;
+}
+
+Viewer::Ptr VisualOdometry::GetVisualizeData()
+{
+  return viewer_;
 }

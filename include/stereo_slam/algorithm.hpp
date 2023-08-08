@@ -12,6 +12,7 @@
 // local header
 #include "stereo_slam/common.hpp"
 
+
 /**
  * linear triangulation with SVD
  * @param poses     poses,
@@ -19,7 +20,6 @@
  * @param pt_world  triangulated point in the world
  * @return true if success
  */
-
 inline bool triangulation(const std::vector<Sophus::SE3d>& poses,
   const std::vector<Vec3>& points, Vec3& pt_world)
 {

@@ -19,9 +19,9 @@ class Dataset
 {
   public:
     using Ptr = std::shared_ptr<Dataset>;
-    Dataset(const std::string& dataset_path);
+    Dataset();
 
-    bool Init();
+    bool Init(const std::vector<std::vector<double>>& projections);
 
     // create and return the next frame containing the stereo images
     Frame::Ptr NextFrame();

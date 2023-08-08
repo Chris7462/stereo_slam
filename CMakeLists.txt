@@ -13,7 +13,10 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -23,7 +26,6 @@ find_package(g2o REQUIRED)
 # visual odometry library
 add_library(visual_odom SHARED
   src/visual_odometry.cpp
-  src/config.cpp
   src/dataset.cpp
   src/camera.cpp
   src/frontend.cpp
@@ -31,7 +33,8 @@ add_library(visual_odom SHARED
   src/feature.cpp
   src/mappoint.cpp
   src/map.cpp
-  src/backend.cpp)
+  src/backend.cpp
+  src/viewer.cpp)
 
 target_include_directories(visual_odom
   PUBLIC
@@ -70,6 +73,9 @@ ament_target_dependencies(stereo_slam_node
   PUBLIC
     rclcpp
     sensor_msgs
+    nav_msgs
+    tf2
+    tf2_ros
     cv_bridge)
 
 target_link_libraries(stereo_slam_node
@@ -85,6 +91,9 @@ install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME})
 
 install(DIRECTORY params
+  DESTINATION share/${PROJECT_NAME})
+
+install(DIRECTORY rviz
   DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)

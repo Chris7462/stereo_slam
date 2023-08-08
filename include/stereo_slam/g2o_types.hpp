@@ -51,14 +51,16 @@ class EdgeProjectionPoseOnly: public g2o::BaseUnaryEdge<2, Vec2, VertexPose>
     EdgeProjectionPoseOnly(const Vec3& pos, const Mat33& K)
       : _pos3d(pos), _K(K)
     {
+      // _pos3d: map point coordinate
+      // _K: camera intrinsic matrix
     }
 
     virtual void computeError() override {
       const VertexPose* v = static_cast<VertexPose*>(_vertices[0]);
-      Sophus::SE3d T = v->estimate();
+      Sophus::SE3d T = v->estimate(); // estimated camera pose
       Vec3 pos_pixel = _K * (T * _pos3d);
       pos_pixel /= pos_pixel[2];
-      _error = _measurement - pos_pixel.head<2>();
+      _error = _measurement - pos_pixel.head<2>();  // _mesurement: feature point calculated by optical flow
     }
 
     virtual void linearizeOplus() override {

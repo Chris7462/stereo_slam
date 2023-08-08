@@ -11,6 +11,7 @@
 #include "stereo_slam/dataset.hpp"
 #include "stereo_slam/frontend.hpp"
 #include "stereo_slam/backend.hpp"
+#include "stereo_slam/viewer.hpp"
 
 
 class VisualOdometry
@@ -18,14 +19,14 @@ class VisualOdometry
   public:
     using Ptr = std::shared_ptr<VisualOdometry>;
 
-    /// constructor with config file
-    VisualOdometry(std::string& config_file);
+    /// constructor
+    VisualOdometry();
 
     /**
      * do initialization things before run
      * @return true if success
      */
-    bool Init();
+    bool Init(const std::vector<std::vector<double>>& projections, double num_features, double num_features_init);
 
     /**
      * start vo in the dataset
@@ -46,15 +47,14 @@ class VisualOdometry
     FrontendStatus GetFrontendStatus() const;
 
     void PushData(cv::Mat& img_left_resize, cv::Mat& img_right_resize);
+    Viewer::Ptr GetVisualizeData();
 
     bool exit_;
 
   private:
-    std::string config_file_;
-
     Dataset::Ptr dataset_;
     Frontend::Ptr frontend_;
     Backend::Ptr backend_;
     Map::Ptr map_;
-//  Viewer::Ptr viewer_;
+    Viewer::Ptr viewer_;
 };

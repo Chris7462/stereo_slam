@@ -11,7 +11,6 @@
 #include "stereo_slam/camera.hpp"
 #include "stereo_slam/map.hpp"
 
-class Map;
 
 /**
  * Backend.

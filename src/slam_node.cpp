@@ -5,6 +5,7 @@
 #include <chrono>
 #include <thread>
 #include <vector>
+#include <cmath>
 
 // local header
 #include "stereo_slam/slam_node.hpp"
@@ -37,14 +38,24 @@ cv::Mat SlamNode::getImageFromMsg(const sensor_msgs::msg::Image::ConstSharedPtr&
 SlamNode::SlamNode(VisualOdometry::Ptr& vo)
   : Node("slam_node"), pvo_{vo}
 {
-  //declare_parameter("left_proj", rclcpp::PARAMETER_DOUBLE_ARRAY);
-  //declare_parameter("right_proj", rclcpp::PARAMETER_DOUBLE_ARRAY);
-  //rclcpp::Parameter left_projection_param = get_parameter("left_proj");
-  //rclcpp::Parameter right_projection_param = get_parameter("right_proj");
-  //std::vector<double> left_projection = left_projection_param.as_double_array();
-  //std::vector<double> right_projection = right_projection_param.as_double_array();
 
-  pvo_->Init();
+  std::vector<std::vector<double>> projections;
+  for (int i = 0; i < 2; ++i) {
+    std::string camera_name = "camera"+std::to_string(i);
+    declare_parameter(camera_name, rclcpp::PARAMETER_DOUBLE_ARRAY);
+    std::vector<double> projection = get_parameter(camera_name).as_double_array();
+    projections.push_back(projection);
+  }
+
+  declare_parameter("num_features", rclcpp::PARAMETER_INTEGER);
+  declare_parameter("num_features_init", rclcpp::PARAMETER_INTEGER);
+  double num_features = get_parameter("num_features").as_int();
+  double num_features_init = get_parameter("num_features_init").as_int();
+
+  pvo_->Init(projections, num_features, num_features_init);
+  viewer_ = pvo_->GetVisualizeData();
+
+  rclcpp::QoS qos(10);
 
   subLeftImg_ = create_subscription<sensor_msgs::msg::Image>(
     "kitti/camera_gray_left/image_raw", 100,
@@ -53,12 +64,17 @@ SlamNode::SlamNode(VisualOdometry::Ptr& vo)
   subRightImg_ = create_subscription<sensor_msgs::msg::Image>(
     "kitti/camera_gray_right/image_raw", 100,
     std::bind(&SlamNode::rightCameraHandler, this, std::placeholders::_1));
+
+  pubImg_ = create_publisher<sensor_msgs::msg::Image>("stereo_slam/annotated_img", qos);
+  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+  pubFramePose_ = create_publisher<nav_msgs::msg::Odometry>("stereo_slam/estimated_pose", qos);
+  pubMapPoint_ = create_publisher<sensor_msgs::msg::PointCloud>("stereo_slam/map_points", qos);
 }
 
 void SlamNode::image_processing()
 {
   // TODO: change to false when slam is done.
-  while (1) {
+  while (!pvo_->exit_) {
     cv::Mat img_left, img_right;
 
     { // for scope lock
@@ -95,4 +111,103 @@ void SlamNode::image_processing()
     std::chrono::milliseconds dura(2);
     std::this_thread::sleep_for(dura);
   }
+}
+
+void SlamNode::pubVisualizeData()
+{
+
+  while (!pvo_->exit_) {
+    //pub image
+    if (!viewer_->img_out_buf_.empty()) {
+      std::lock_guard<std::mutex> lck(img_mutex_);
+      cv::Mat img = viewer_->img_out_buf_.front();
+      viewer_->img_out_buf_.pop();
+      sensor_msgs::msg::Image::SharedPtr img_msg =
+                cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", img).toImageMsg();
+      img_msg->header.stamp = rclcpp::Node::now();
+      pubImg_->publish(*img_msg);
+    }
+
+    //pub frame pose & tf2_msg
+    if (!viewer_->pose_out_buf_.empty()) {
+      std::lock_guard<std::mutex> lck(img_mutex_);
+      Sophus::SE3d se3_pose = viewer_->pose_out_buf_.front();
+      viewer_->pose_out_buf_.pop();
+
+      //change coordinate to align "odom frame"
+      se3_pose = Sophus::SE3d::rotY(M_PI/2.0) * Sophus::SE3d::rotZ(-M_PI/2.0) * se3_pose;
+      pubTF2(se3_pose);
+      nav_msgs::msg::Odometry odom_msg = sophusToMsg(se3_pose);
+      pubFramePose_->publish(odom_msg);
+    }
+
+    //pub map point
+    if (!viewer_->mappoint_out_buf_.empty()) {
+      std::lock_guard<std::mutex> lck(img_mutex_);
+      std::vector<Vec3> mp = viewer_->mappoint_out_buf_.front();
+      viewer_->mappoint_out_buf_.pop();
+      sensor_msgs::msg::PointCloud mp_msg = eigenToMsg(mp);
+      pubMapPoint_->publish(mp_msg);
+    }
+    std::chrono::milliseconds dura(2);
+    std::this_thread::sleep_for(dura);
+  }
+}
+
+nav_msgs::msg::Odometry SlamNode::sophusToMsg(const Sophus::SE3d& se3)
+{
+  nav_msgs::msg::Odometry msg;
+  msg.header.frame_id = "odom";
+  msg.child_frame_id = "camera_link";
+  msg.header.stamp = rclcpp::Node::now();
+  msg.pose.pose.position.x = se3.translation().x();
+  msg.pose.pose.position.y = se3.translation().y();
+  msg.pose.pose.position.z = se3.translation().z();
+  msg.pose.pose.orientation.x = se3.unit_quaternion().x();
+  msg.pose.pose.orientation.y = se3.unit_quaternion().y();
+  msg.pose.pose.orientation.z = se3.unit_quaternion().z();
+  msg.pose.pose.orientation.w = se3.unit_quaternion().w();
+  return msg;
+}
+
+sensor_msgs::msg::PointCloud SlamNode::eigenToMsg(const std::vector<Vec3>& points)
+{
+  // Create rotation matrix to tranform point clouds to odom frame
+  Eigen::AngleAxisd pitchAngle(M_PI/2.0, Eigen::Vector3d::UnitY());
+  Eigen::AngleAxisd yawAngle(-M_PI/2.0, Eigen::Vector3d::UnitZ());
+  Eigen::Quaternion<double> q =  pitchAngle * yawAngle;
+  Eigen::Matrix3d rotationMatrix = q.matrix();
+
+  sensor_msgs::msg::PointCloud map;
+  map.header.frame_id = "odom";
+  map.header.stamp = rclcpp::Node::now();
+  for (const auto& point: points) {
+    Vec3 point_world = rotationMatrix * point;
+    geometry_msgs::msg::Point32 p;
+    p.x = point_world.x();
+    p.y = point_world.y();
+    p.z = point_world.z();
+    map.points.push_back(p);
+  }
+  return map;
+}
+
+void SlamNode::pubTF2(const Sophus::SE3d& se3)
+{
+  geometry_msgs::msg::TransformStamped t;
+
+  t.header.stamp = rclcpp::Node::now();
+  t.header.frame_id = "odom";
+  t.child_frame_id = "camera_link";
+
+  t.transform.translation.x = se3.translation().x();
+  t.transform.translation.y = se3.translation().y();
+  t.transform.translation.z = se3.translation().z();
+  t.transform.rotation.x = se3.unit_quaternion().x();
+  t.transform.rotation.y = se3.unit_quaternion().y();
+  t.transform.rotation.z = se3.unit_quaternion().z();
+  t.transform.rotation.w = se3.unit_quaternion().w();
+
+  // Send the transformation
+  tf_broadcaster_->sendTransform(t);
 }

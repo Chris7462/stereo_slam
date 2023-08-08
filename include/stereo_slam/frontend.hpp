@@ -10,8 +10,8 @@
 #include "stereo_slam/frame.hpp"
 #include "stereo_slam/map.hpp"
 #include "stereo_slam/backend.hpp"
+#include "stereo_slam/viewer.hpp"
 
-//class Viewer;
 
 enum class FrontendStatus
 {
@@ -25,7 +25,8 @@ class Frontend
 {
   public:
     using Ptr = std::shared_ptr<Frontend>;
-    Frontend();
+    // constructor with passed in ros params
+    Frontend(double num_features, double num_features_init);
 
     bool Addframe(Frame::Ptr frame);
 
@@ -33,7 +34,7 @@ class Frontend
 
     void SetMap(Map::Ptr map) { map_ = map; }
 
-    //void SetViewer(std::shared_ptr<Viewer> viewer) { viewer_ = viewer; }
+    void SetViewer(Viewer::Ptr viewer) { viewer_ = viewer; }
 
     FrontendStatus GetStatus() const;
 
@@ -116,7 +117,7 @@ class Frontend
 
     Map::Ptr map_ = nullptr;
     Backend::Ptr backend_ = nullptr;
-    //Viewer::Ptr viewer_ = nullptr;
+    Viewer::Ptr viewer_ = nullptr;
 
     Sophus::SE3d relative_motion_;  // relative motion between current and last frame used for current pose estimation
 
