@@ -18,16 +18,37 @@ void Viewer::Close()
   viewer_thread_.join();
 }
 
+void Viewer::Reset()
+{
+  std::lock_guard<std::mutex> lck(viewer_data_mutex_);
+  current_frame_ = nullptr;
+
+  std::queue<Sophus::SE3d> pose_empty;
+  std::swap(pose_out_buf_, pose_empty);
+
+  std::queue<cv::Mat> img_empty;
+  std::swap(img_out_buf_, img_empty);
+
+  std::queue<std::vector<Vec3>> mappoint_empty;
+  std::swap(mappoint_out_buf_, mappoint_empty);
+
+  new_frame_added_ = false;
+  map_updated_ = false;
+
+  active_keyframes_.clear();
+  active_landmarks_.clear();
+}
+
 void Viewer::AddCurrentFrame(Frame::Ptr current_frame)
 {
-  std::unique_lock<std::mutex> lck(viewer_data_mutex_);
+  std::lock_guard<std::mutex> lck(viewer_data_mutex_);
   current_frame_ = current_frame;
   new_frame_added_ = true;
 }
 
 void Viewer::UpdateMap()
 {
-  std::unique_lock<std::mutex> lck(viewer_data_mutex_);
+  std::lock_guard<std::mutex> lck(viewer_data_mutex_);
   assert(map_ != nullptr);
   active_keyframes_ = map_->GetActiveKeyFrames();
   active_landmarks_ = map_->GetActiveMapPoints();
@@ -38,7 +59,7 @@ void Viewer::ThreadLoop()
 {
   while (viewer_running_) {
     if (new_frame_added_ && current_frame_) {
-      std::unique_lock<std::mutex> lock(viewer_data_mutex_);
+      std::lock_guard<std::mutex> lock(viewer_data_mutex_);
       cv::Mat img = PlotFrameImage();  //image for publishing
       img_out_buf_.push(img);
       pose_out_buf_.push(current_frame_->Pose().inverse());
@@ -46,7 +67,7 @@ void Viewer::ThreadLoop()
     }
 
     if (map_ && map_updated_) {
-      std::unique_lock<std::mutex> lock(viewer_data_mutex_);
+      std::lock_guard<std::mutex> lock(viewer_data_mutex_);
       std::vector<Vec3> map_points;
       for (auto& landmark: active_landmarks_) {
         auto pos = landmark.second->Pos();

@@ -36,25 +36,25 @@ void Map::InsertMapPoint(MapPoint::Ptr map_point)
 
 Map::LandmarksType Map::GetAllMapPoints()
 {
-  std::unique_lock<std::mutex> lck(data_mutex_);
+  std::lock_guard<std::mutex> lck(data_mutex_);
   return landmarks_;
 }
 
 Map::KeyframesType Map::GetAllKeyFrames()
 {
-  std::unique_lock<std::mutex> lck(data_mutex_);
+  std::lock_guard<std::mutex> lck(data_mutex_);
   return keyframes_;
 }
 
 Map::LandmarksType Map::GetActiveMapPoints()
 {
-  std::unique_lock<std::mutex> lck(data_mutex_);
+  std::lock_guard<std::mutex> lck(data_mutex_);
   return active_landmarks_;
 }
 
 Map::KeyframesType Map::GetActiveKeyFrames()
 {
-  std::unique_lock<std::mutex> lck(data_mutex_);
+  std::lock_guard<std::mutex> lck(data_mutex_);
   return active_keyframes_;
 }
 
@@ -70,6 +70,18 @@ void Map::CleanMap()
     }
   }
   std::cout << "Removed " << cnt_landmark_removed << " active landmarks" << std::endl;
+}
+
+void Map::Reset()
+{
+  std::cout << "Reset the Map!!!" << std::endl;
+  std::lock_guard<std::mutex> lck(data_mutex_);
+  landmarks_.clear();
+  active_landmarks_.clear();
+  keyframes_.clear();
+  active_keyframes_.clear();
+
+  current_frame_ = nullptr;
 }
 
 void Map::RemoveOldKeyframe()

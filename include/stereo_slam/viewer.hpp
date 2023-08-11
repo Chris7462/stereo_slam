@@ -4,11 +4,13 @@
 #include <thread>
 #include <queue>
 #include <vector>
+#include <mutex>
 
 // local header
 #include "stereo_slam/common.hpp"
 #include "stereo_slam/frame.hpp"
 #include "stereo_slam/map.hpp"
+
 
 /**
  * Visualizer
@@ -23,6 +25,9 @@ class Viewer
     void SetMap(Map::Ptr map) { map_ = map; }
 
     void Close();
+
+    /// Remove all the stored data
+    void Reset();
 
     // Add a current frame
     void AddCurrentFrame(Frame::Ptr current_frame);

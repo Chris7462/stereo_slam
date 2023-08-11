@@ -2,6 +2,7 @@
 
 // c++ header
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 
 // local header
@@ -45,6 +46,9 @@ class Map
 
     /// Clean up the points in map where the number of observations is zero
     void CleanMap();
+
+    /// Clean up everything
+    void Reset();
 
   private:
     // Deactive old key frame

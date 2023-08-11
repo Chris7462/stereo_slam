@@ -111,7 +111,17 @@ bool Frontend::Track()
 
 bool Frontend::Reset()
 {
-  std::cout << "Reset is not implemented." << std::endl;
+  std::cout << "Reset the VO. Clean-up Map and Viewer. Re-init Frontend." << std::endl;
+
+  // Clean-up Map and Viewer. Nothing to clean for the Backend.
+  map_->Reset();
+  viewer_->Reset();
+
+  // Re-init Frontend. Camera setting stays the same.
+  status_ = FrontendStatus::INITING;
+  current_frame_ = nullptr;
+  last_frame_ = nullptr;
+
   return true;
 }
 
@@ -286,8 +296,8 @@ int Frontend::TriangulateNewPoints()
   for (size_t i = 0; i < current_frame_->features_left_.size(); ++i) {
     if (current_frame_->features_left_[i]->map_point_.expired() &&
       current_frame_->features_right_[i] != nullptr) {
-      // The feature points of the left map are not associated with map points and
-      // there are right map matches, try triangulation
+      // The feature points of the left map are not associated with map points
+      // and there are right map matches, try triangulation
       std::vector<Vec3> points{
         camera_left_->pixel2camera(
           Vec2(current_frame_->features_left_[i]->position_.pt.x,
