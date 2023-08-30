@@ -255,7 +255,7 @@ sensor_msgs::msg::PointCloud SlamNode::eigenToMsg(const std::vector<Vec3>& point
   // Create rotation matrix to tranform point clouds to odom frame
   Eigen::AngleAxisd pitchAngle(M_PI/2.0, Eigen::Vector3d::UnitY());
   Eigen::AngleAxisd yawAngle(-M_PI/2.0, Eigen::Vector3d::UnitZ());
-  Eigen::Quaternion<double> q =  pitchAngle * yawAngle;
+  Eigen::Quaterniond q =  pitchAngle * yawAngle;
   Eigen::Matrix3d rotationMatrix = q.matrix();
 
   sensor_msgs::msg::PointCloud map;
