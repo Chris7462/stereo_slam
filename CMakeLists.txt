@@ -17,11 +17,13 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Sophus REQUIRED)
 find_package(g2o REQUIRED)
+find_package(GeographicLib REQUIRED)
 
 # visual odometry library
 add_library(visual_odom SHARED
@@ -74,9 +76,11 @@ ament_target_dependencies(stereo_slam_node
     rclcpp
     sensor_msgs
     nav_msgs
+    geometry_msgs
     tf2
     tf2_ros
-    cv_bridge)
+    cv_bridge
+    GeographicLib)
 
 target_link_libraries(stereo_slam_node
   PUBLIC
@@ -105,7 +109,17 @@ if(BUILD_TESTING)
   # comment the line when this package is in a git repo and when
   # a copyright and license is added to all source files
   set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
+  #ament_lint_auto_find_test_dependencies()
+
+  # unit testing (google test)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  set(test_sources test_algorithm)
+  foreach(test_src ${test_sources})
+    ament_add_gtest(${test_src} test/${test_src}.cpp)
+    target_link_libraries(${test_src} visual_odom gtest_main)
+  endforeach(test_src ${test_sources})
+
 endif()
 
 ament_package()

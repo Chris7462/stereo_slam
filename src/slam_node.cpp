@@ -1,11 +1,15 @@
 // ros header
 #include <cv_bridge/cv_bridge.h>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 
 // c++ header
 #include <chrono>
 #include <thread>
 #include <vector>
 #include <cmath>
+
+// Eigen header
+#include <Eigen/Core>
 
 // local header
 #include "stereo_slam/slam_node.hpp"
@@ -24,7 +28,7 @@ void SlamNode::rightCameraHandler(const sensor_msgs::msg::Image::ConstSharedPtr 
   imgRightBuf_.push(rightCameraMsg);
 }
 
-cv::Mat SlamNode::getImageFromMsg(const sensor_msgs::msg::Image::ConstSharedPtr& imgMsg)
+cv::Mat SlamNode::getImageFromMsg(const sensor_msgs::msg::Image::ConstSharedPtr imgMsg)
 {
   cv_bridge::CvImageConstPtr ptr;
   try {
@@ -36,12 +40,11 @@ cv::Mat SlamNode::getImageFromMsg(const sensor_msgs::msg::Image::ConstSharedPtr&
 }
 
 SlamNode::SlamNode(VisualOdometry::Ptr& vo)
-  : Node("slam_node"), pvo_{vo}
+  : Node("slam_node"), pvo_(vo), gps_init_(false), sync_(policy_t(10), subIMU_, subGPS_)
 {
-
   std::vector<std::vector<double>> projections;
   for (int i = 0; i < 2; ++i) {
-    std::string camera_name = "camera"+std::to_string(i);
+    std::string camera_name = "camera" + std::to_string(i);
     declare_parameter(camera_name, rclcpp::PARAMETER_DOUBLE_ARRAY);
     std::vector<double> projection = get_parameter(camera_name).as_double_array();
     projections.push_back(projection);
@@ -52,24 +55,96 @@ SlamNode::SlamNode(VisualOdometry::Ptr& vo)
   double num_features = get_parameter("num_features").as_int();
   double num_features_init = get_parameter("num_features_init").as_int();
 
+  declare_parameter("init_rpy", rclcpp::PARAMETER_DOUBLE_ARRAY);
+  std::vector<double> init_rpy = get_parameter("init_rpy").as_double_array();
+
+  // Initial Rotation Matrix (for normalizing)
+  Eigen::AngleAxisd rollAngle(-init_rpy[0], Eigen::Vector3d::UnitX());
+  Eigen::AngleAxisd pitchAngle(-init_rpy[1], Eigen::Vector3d::UnitY());
+  Eigen::AngleAxisd yawAngle(-init_rpy[2], Eigen::Vector3d::UnitZ());
+  initial_rotation_ = (rollAngle * pitchAngle * yawAngle).toRotationMatrix();
+
   pvo_->Init(projections, num_features, num_features_init);
   viewer_ = pvo_->GetVisualizeData();
 
   rclcpp::QoS qos(10);
 
   subLeftImg_ = create_subscription<sensor_msgs::msg::Image>(
-    "kitti/camera_gray_left/image_raw", 100,
+    "kitti/camera_gray_left/image_raw", qos,
     std::bind(&SlamNode::leftCameraHandler, this, std::placeholders::_1));
 
   subRightImg_ = create_subscription<sensor_msgs::msg::Image>(
-    "kitti/camera_gray_right/image_raw", 100,
+    "kitti/camera_gray_right/image_raw", qos,
     std::bind(&SlamNode::rightCameraHandler, this, std::placeholders::_1));
 
+  // sync gps and imu msg
+  auto rmw_qos_profile = qos.get_rmw_qos_profile();
+  subGPS_.subscribe(this, "kitti/oxts/gps/fix", rmw_qos_profile);
+  subIMU_.subscribe(this, "kitti/oxts/imu", rmw_qos_profile);
+  sync_.registerCallback(&SlamNode::sync_callback, this);
+
   pubImg_ = create_publisher<sensor_msgs::msg::Image>("stereo_slam/annotated_img", qos);
-  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
-  pubFramePose_ = create_publisher<nav_msgs::msg::Odometry>("stereo_slam/estimated_pose", qos);
+  pubCameraPose_ = create_publisher<nav_msgs::msg::Odometry>("stereo_slam/estimated_pose", qos);
   pubMapPoint_ = create_publisher<sensor_msgs::msg::PointCloud>("stereo_slam/map_points", qos);
+  pubGpsPath_ = create_publisher<nav_msgs::msg::Path>("stereo_slam/gps_path", qos);
+  pubCameraPath_ = create_publisher<nav_msgs::msg::Path>("stereo_slam/camera_path", qos);
+
+  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 }
+
+void SlamNode::sync_callback(const sensor_msgs::msg::Imu::ConstSharedPtr imuMsg,
+  const sensor_msgs::msg::NavSatFix::ConstSharedPtr gpsMsg)
+{
+  // use the first gps signal as (0,0,0)
+  if (!gps_init_) {
+    geo_converter_.Reset(gpsMsg->latitude, gpsMsg->longitude, gpsMsg->altitude);
+    gps_init_ = true;
+  }
+
+  // orientation information from imu_msg
+  Eigen::Quaterniond imu_orientation(imuMsg->orientation.w, imuMsg->orientation.x, imuMsg->orientation.y, imuMsg->orientation.z);
+
+  // pose information from gps_msg
+  double lat, lon, alt;
+  geo_converter_.Forward(gpsMsg->latitude, gpsMsg->longitude, gpsMsg->altitude, lat, lon, alt);
+
+  // rotate the pose with init_rotation_
+  Eigen::Vector3d pose = initial_rotation_ * Eigen::Vector3d(lat, lon, alt);
+
+  // rotate orientation and convert to quaternion
+  Eigen::Quaterniond orientation(imu_orientation.toRotationMatrix() * initial_rotation_);
+
+  // publish gps path
+  geometry_msgs::msg::PoseStamped gpsPose;
+  gpsPose.header.frame_id = "odom";
+  gpsPose.header.stamp = rclcpp::Node::now();
+  gpsPose.pose.position.x = pose.x();
+  gpsPose.pose.position.y = pose.y();
+  gpsPose.pose.position.z = pose.z();
+  gpsPose.pose.orientation.x = orientation.x();
+  gpsPose.pose.orientation.y = orientation.y();
+  gpsPose.pose.orientation.z = orientation.z();
+  gpsPose.pose.orientation.w = orientation.w();
+  gpsPath_.header = gpsPose.header;
+  gpsPath_.poses.push_back(gpsPose);
+  pubGpsPath_->publish(gpsPath_);
+
+  // publish tf msg
+  geometry_msgs::msg::TransformStamped t;
+  t.header.stamp = rclcpp::Node::now();
+  t.header.frame_id = "odom";
+  t.child_frame_id = "gps_link";
+  t.transform.translation.x = pose.x();
+  t.transform.translation.y = pose.y();
+  t.transform.translation.z = pose.z();
+  t.transform.rotation.x = orientation.x();
+  t.transform.rotation.y = orientation.y();
+  t.transform.rotation.z = orientation.z();
+  t.transform.rotation.w = orientation.w();
+
+  // Send the transformation
+  tf_broadcaster_->sendTransform(t);
+};
 
 void SlamNode::image_processing()
 {
@@ -92,7 +167,6 @@ void SlamNode::image_processing()
           imgRightBuf_.pop();
           RCLCPP_INFO_STREAM(get_logger(), "Throw right image --- Sync error: " << (left_time - right_time));
         } else {
-          RCLCPP_INFO(get_logger(), "Sync success!");
           img_left = getImageFromMsg(imgLeftBuf_.front());
           img_right = getImageFromMsg(imgRightBuf_.front());
           imgLeftBuf_.pop();
@@ -115,33 +189,39 @@ void SlamNode::image_processing()
 
 void SlamNode::pubVisualizeData()
 {
-
   while (!pvo_->exit_) {
-    //pub image
+    // pub image
     if (!viewer_->img_out_buf_.empty()) {
       std::lock_guard<std::mutex> lck(img_mutex_);
       cv::Mat img = viewer_->img_out_buf_.front();
       viewer_->img_out_buf_.pop();
       sensor_msgs::msg::Image::SharedPtr img_msg =
-                cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", img).toImageMsg();
+        cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", img).toImageMsg();
       img_msg->header.stamp = rclcpp::Node::now();
       pubImg_->publish(*img_msg);
     }
 
-    //pub frame pose & tf2_msg
+    // pub frame pose & tf2_msg
     if (!viewer_->pose_out_buf_.empty()) {
       std::lock_guard<std::mutex> lck(img_mutex_);
       Sophus::SE3d se3_pose = viewer_->pose_out_buf_.front();
       viewer_->pose_out_buf_.pop();
-
-      //change coordinate to align "odom frame"
+      // change coordinate to align "odom frame"
       se3_pose = Sophus::SE3d::rotY(M_PI/2.0) * Sophus::SE3d::rotZ(-M_PI/2.0) * se3_pose;
       pubTF2(se3_pose);
       nav_msgs::msg::Odometry odom_msg = sophusToMsg(se3_pose);
-      pubFramePose_->publish(odom_msg);
+      pubCameraPose_->publish(odom_msg);
+
+      // publish path
+      geometry_msgs::msg::PoseStamped cameraPose;
+      cameraPose.header = odom_msg.header;
+      cameraPose.pose = odom_msg.pose.pose;
+      cameraPath_.header = odom_msg.header;
+      cameraPath_.poses.push_back(cameraPose);
+      pubCameraPath_->publish(cameraPath_);
     }
 
-    //pub map point
+    // pub map point
     if (!viewer_->mappoint_out_buf_.empty()) {
       std::lock_guard<std::mutex> lck(img_mutex_);
       std::vector<Vec3> mp = viewer_->mappoint_out_buf_.front();
@@ -195,11 +275,9 @@ sensor_msgs::msg::PointCloud SlamNode::eigenToMsg(const std::vector<Vec3>& point
 void SlamNode::pubTF2(const Sophus::SE3d& se3)
 {
   geometry_msgs::msg::TransformStamped t;
-
   t.header.stamp = rclcpp::Node::now();
   t.header.frame_id = "odom";
   t.child_frame_id = "camera_link";
-
   t.transform.translation.x = se3.translation().x();
   t.transform.translation.y = se3.translation().y();
   t.transform.translation.z = se3.translation().z();
