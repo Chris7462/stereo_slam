@@ -5,6 +5,11 @@ The code is modified from [chapter 12](https://github.com/gaoxiang12/slambook2/t
 
 ## 1. Demo Highlights
 Watch our demo at [Video Link](https://youtu.be/Z5XTmDap_Pk)
+<p align='center'>
+  <a href="https://youtu.be/Z5XTmDap_Pk">
+    <img width="65%" src="./img/visual_slam.gif"/>
+  </a>
+</p>
 
 ## 2. Prerequisites
 ### 2.1 **Ubuntu** and **ROS2**
