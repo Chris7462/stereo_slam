@@ -50,7 +50,6 @@ class SlamNode: public rclcpp::Node
 
     void leftCameraHandler(const sensor_msgs::msg::Image::ConstSharedPtr leftCameraMsg);
     void rightCameraHandler(const sensor_msgs::msg::Image::ConstSharedPtr rightCameraMsg);
-    void gpsCallback(const sensor_msgs::msg::NavSatFix::ConstSharedPtr gpsMsg);
 
     nav_msgs::msg::Odometry sophusToMsg(const Sophus::SE3d& se3);
     sensor_msgs::msg::PointCloud eigenToMsg(const std::vector<Vec3>& points);
