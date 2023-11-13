@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(stereo_slam)
 
-set(CMAKE_BUID_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Release")
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-O3 -Wall -Wextra -Wpedantic)
