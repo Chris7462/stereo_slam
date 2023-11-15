@@ -66,7 +66,7 @@ class SlamNode: public rclcpp::Node
     VisualOdometry::Ptr pvo_;
 
     GeographicLib::LocalCartesian geo_converter_;
-    bool gps_init_;
+    bool gps_imu_init_;
     Eigen::Matrix3d initial_rotation_;
 
     nav_msgs::msg::Path cameraPath_;

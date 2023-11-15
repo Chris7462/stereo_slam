@@ -1,6 +1,7 @@
 // ros header
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <tf2_eigen/tf2_eigen.hpp>
 
 // c++ header
 #include <chrono>
@@ -40,7 +41,7 @@ cv::Mat SlamNode::getImageFromMsg(const sensor_msgs::msg::Image::ConstSharedPtr 
 }
 
 SlamNode::SlamNode(VisualOdometry::Ptr& vo)
-  : Node("slam_node"), pvo_(vo), gps_init_(false), sync_(policy_t(10), subIMU_, subGPS_)
+  : Node("slam_node"), pvo_(vo), gps_imu_init_(false), sync_(policy_t(10), subIMU_, subGPS_)
 {
   std::vector<std::vector<double>> projections;
   for (int i = 0; i < 2; ++i) {
@@ -54,15 +55,6 @@ SlamNode::SlamNode(VisualOdometry::Ptr& vo)
   declare_parameter("num_features_init", rclcpp::PARAMETER_INTEGER);
   double num_features = get_parameter("num_features").as_int();
   double num_features_init = get_parameter("num_features_init").as_int();
-
-  declare_parameter("init_rpy", rclcpp::PARAMETER_DOUBLE_ARRAY);
-  std::vector<double> init_rpy = get_parameter("init_rpy").as_double_array();
-
-  // Initial Rotation Matrix (for normalizing)
-  Eigen::AngleAxisd rollAngle(-init_rpy[0], Eigen::Vector3d::UnitX());
-  Eigen::AngleAxisd pitchAngle(-init_rpy[1], Eigen::Vector3d::UnitY());
-  Eigen::AngleAxisd yawAngle(-init_rpy[2], Eigen::Vector3d::UnitZ());
-  initial_rotation_ = (rollAngle * pitchAngle * yawAngle).toRotationMatrix();
 
   pvo_->Init(projections, num_features, num_features_init);
   viewer_ = pvo_->GetVisualizeData();
@@ -96,9 +88,12 @@ void SlamNode::sync_callback(const sensor_msgs::msg::Imu::ConstSharedPtr imuMsg,
   const sensor_msgs::msg::NavSatFix::ConstSharedPtr gpsMsg)
 {
   // use the first gps signal as (0,0,0)
-  if (!gps_init_) {
+  if (!gps_imu_init_) {
     geo_converter_.Reset(gpsMsg->latitude, gpsMsg->longitude, gpsMsg->altitude);
-    gps_init_ = true;
+    Eigen::Quaterniond init_rot;
+    tf2::fromMsg(imuMsg->orientation, init_rot);
+    initial_rotation_ = init_rot.toRotationMatrix().transpose();
+    gps_imu_init_ = true;
   }
 
   // orientation information from imu_msg

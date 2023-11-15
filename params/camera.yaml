@@ -11,4 +11,3 @@ stereo_slam_node:
     num_features: 150
     num_features_init: 50
     num_features_tracking: 50
-    init_rpy: [0.02433, 0.018446, 2.0232283267949]
