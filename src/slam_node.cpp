@@ -139,7 +139,7 @@ void SlamNode::sync_callback(const sensor_msgs::msg::Imu::ConstSharedPtr imuMsg,
 
   // Send the transformation
   tf_broadcaster_->sendTransform(t);
-};
+}
 
 void SlamNode::image_processing()
 {

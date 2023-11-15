@@ -116,11 +116,14 @@ if(BUILD_TESTING)
   # unit testing (google test)
   find_package(ament_cmake_gtest REQUIRED)
 
-  set(test_sources test_algorithm)
+  set(test_sources
+      test_algorithm test_dataset test_map_point
+      test_frame test_camera test_map test_viewer
+      test_backend)
   foreach(test_src ${test_sources})
     ament_add_gtest(${test_src} test/${test_src}.cpp)
     target_link_libraries(${test_src} visual_odom gtest_main)
-  endforeach(test_src ${test_sources})
+  endforeach()
 
 endif()
 
