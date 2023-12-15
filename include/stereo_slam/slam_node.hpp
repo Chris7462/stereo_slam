@@ -44,8 +44,6 @@ class SlamNode: public rclcpp::Node
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pubImg_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pubCameraPose_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud>::SharedPtr pubMapPoint_;
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pubCameraPath_;
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pubGpsPath_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
     void leftCameraHandler(const sensor_msgs::msg::Image::ConstSharedPtr leftCameraMsg);

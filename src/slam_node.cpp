@@ -78,8 +78,6 @@ SlamNode::SlamNode(VisualOdometry::Ptr& vo)
   pubImg_ = create_publisher<sensor_msgs::msg::Image>("stereo_slam/annotated_img", qos);
   pubCameraPose_ = create_publisher<nav_msgs::msg::Odometry>("stereo_slam/estimated_pose", qos);
   pubMapPoint_ = create_publisher<sensor_msgs::msg::PointCloud>("stereo_slam/map_points", qos);
-  pubGpsPath_ = create_publisher<nav_msgs::msg::Path>("stereo_slam/gps_path", qos);
-  pubCameraPath_ = create_publisher<nav_msgs::msg::Path>("stereo_slam/camera_path", qos);
 
   tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 }
@@ -108,21 +106,6 @@ void SlamNode::sync_callback(const sensor_msgs::msg::Imu::ConstSharedPtr imuMsg,
 
   // rotate orientation and convert to quaternion
   Eigen::Quaterniond orientation(imu_orientation.toRotationMatrix() * initial_rotation_);
-
-  // publish gps path
-  geometry_msgs::msg::PoseStamped gpsPose;
-  gpsPose.header.frame_id = "odom";
-  gpsPose.header.stamp = rclcpp::Node::now();
-  gpsPose.pose.position.x = pose.x();
-  gpsPose.pose.position.y = pose.y();
-  gpsPose.pose.position.z = pose.z();
-  gpsPose.pose.orientation.x = orientation.x();
-  gpsPose.pose.orientation.y = orientation.y();
-  gpsPose.pose.orientation.z = orientation.z();
-  gpsPose.pose.orientation.w = orientation.w();
-  gpsPath_.header = gpsPose.header;
-  gpsPath_.poses.push_back(gpsPose);
-  pubGpsPath_->publish(gpsPath_);
 
   // publish tf msg
   geometry_msgs::msg::TransformStamped t;
@@ -206,14 +189,6 @@ void SlamNode::pubVisualizeData()
       pubTF2(se3_pose);
       nav_msgs::msg::Odometry odom_msg = sophusToMsg(se3_pose);
       pubCameraPose_->publish(odom_msg);
-
-      // publish path
-      geometry_msgs::msg::PoseStamped cameraPose;
-      cameraPose.header = odom_msg.header;
-      cameraPose.pose = odom_msg.pose.pose;
-      cameraPath_.header = odom_msg.header;
-      cameraPath_.poses.push_back(cameraPose);
-      pubCameraPath_->publish(cameraPath_);
     }
 
     // pub map point

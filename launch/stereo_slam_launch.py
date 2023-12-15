@@ -1,5 +1,6 @@
 from launch import LaunchDescription
-from launch_ros.actions import Node
+from launch_ros.actions import ComposableNodeContainer, Node
+from launch_ros.descriptions import ComposableNode
 from launch.actions import ExecuteProcess
 from ament_index_python.packages import get_package_share_directory
 from os.path import join
@@ -44,10 +45,33 @@ def generate_launch_description():
          "/kitti/oxts/gps/fix", "/kitti/oxts/imu", "--clock"]
   )
 
+  trajectory_server = ComposableNodeContainer(
+    name="trajectory_server_container",
+    namespace="",
+    package="rclcpp_components",
+    executable="component_container",
+    output="screen",
+    composable_node_descriptions=[
+      ComposableNode(
+        package="trajectory_server",
+        plugin="trajectory_server::TrajectoryServer",
+        name="trajectory_server_component",
+        namespace = "gps",
+        parameters=[{
+          "target_frame_name": "odom",
+          "source_frame_name": "gps_link",
+          "trajectory_update_rate": 10.0,
+          "trajectory_publsih_rate": 10.0
+        }]
+      )
+    ]
+  )
+
   return LaunchDescription([
     stereo_slam_node,
     cam_to_base_tf,
     gps_to_base_tf,
     rviz_node,
-    bag_exec
+    bag_exec,
+    trajectory_server
   ])
