@@ -92,8 +92,6 @@ Visualization Manager:
           Value: true
         odom:
           Value: true
-        world:
-          Value: true
       Marker Scale: 40
       Name: TF
       Show Arrows: true
@@ -147,7 +145,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /stereo_slam/camera_path
+        Value: /camera/trajectory
       Value: true
     - Alpha: 1
       Buffer Length: 1
@@ -175,7 +173,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /stereo_slam/gps_path
+        Value: /oxts/trajectory
       Value: true
   Enabled: true
   Global Options:
@@ -222,8 +220,8 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz_default_plugins/ThirdPersonFollower
-      Distance: 85.40243530273438
+      Class: rviz_default_plugins/Orbit
+      Distance: 71.73198699951172
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -238,10 +236,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.1003982201218605
+      Pitch: 0.5053983330726624
       Target Frame: camera_link
-      Value: ThirdPersonFollower (rviz_default_plugins)
-      Yaw: 4.740397930145264
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 3.20040225982666
     Saved: ~
 Window Geometry:
   Displays:

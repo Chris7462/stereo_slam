@@ -1,6 +1,5 @@
 from launch import LaunchDescription
-from launch_ros.actions import ComposableNodeContainer, Node
-from launch_ros.descriptions import ComposableNode
+from launch_ros.actions import Node, SetParameter
 from launch.actions import ExecuteProcess
 from ament_index_python.packages import get_package_share_directory
 from os.path import join
@@ -40,38 +39,42 @@ def generate_launch_description():
   )
 
   bag_exec = ExecuteProcess(
-    cmd=["ros2", "bag", "play", "/data/Kitti/raw/kitti_2011_09_26_drive_0014_synced",
-         "--topics", "/kitti/camera_gray_left/image_raw", "/kitti/camera_gray_right/image_raw",
-         "/kitti/oxts/gps/fix", "/kitti/oxts/imu", "--clock"]
+    cmd=["ros2", "bag", "play", "-r", "1.0", "/data/Kitti/raw/2011_09_29_drive_0071_sync_bag" , "--clock"]
   )
 
-  trajectory_server = ComposableNodeContainer(
-    name="trajectory_server_container",
-    namespace="",
-    package="rclcpp_components",
-    executable="component_container",
-    output="screen",
-    composable_node_descriptions=[
-      ComposableNode(
-        package="trajectory_server",
-        plugin="trajectory_server::TrajectoryServer",
-        name="trajectory_server_component",
-        namespace = "gps",
-        parameters=[{
-          "target_frame_name": "odom",
-          "source_frame_name": "gps_link",
-          "trajectory_update_rate": 10.0,
-          "trajectory_publsih_rate": 10.0
-        }]
-      )
-    ]
+  trajectory_server_gps_node=Node(
+    package="trajectory_server",
+    executable="trajectory_server_node",
+    name="trajectory_server_node",
+    namespace = "oxts",
+    parameters=[{
+      "target_frame_name": "odom",
+      "source_frame_name": "gps_link",
+      "trajectory_update_rate": 10.0,
+      "trajectory_publish_rate": 10.0
+    }]
+  )
+
+  trajectory_server_camera_node=Node(
+    package="trajectory_server",
+    executable="trajectory_server_node",
+    name="trajectory_server_node",
+    namespace = "camera",
+    parameters=[{
+      "target_frame_name": "odom",
+      "source_frame_name": "camera_link",
+      "trajectory_update_rate": 10.0,
+      "trajectory_publish_rate": 10.0
+    }]
   )
 
   return LaunchDescription([
+    SetParameter(name="use_sim_time", value=True),
     stereo_slam_node,
     cam_to_base_tf,
     gps_to_base_tf,
     rviz_node,
     bag_exec,
-    trajectory_server
+    trajectory_server_gps_node,
+    trajectory_server_camera_node
   ])
