@@ -62,17 +62,17 @@ SlamNode::SlamNode(VisualOdometry::Ptr& vo)
   rclcpp::QoS qos(10);
 
   subLeftImg_ = create_subscription<sensor_msgs::msg::Image>(
-    "kitti/image/gray/left", qos,
+    "kitti/camera/gray/left", qos,
     std::bind(&SlamNode::leftCameraHandler, this, std::placeholders::_1));
 
   subRightImg_ = create_subscription<sensor_msgs::msg::Image>(
-    "kitti/image/gray/right", qos,
+    "kitti/camera/gray/right", qos,
     std::bind(&SlamNode::rightCameraHandler, this, std::placeholders::_1));
 
   // sync gps and imu msg
   auto rmw_qos_profile = qos.get_rmw_qos_profile();
-  subGPS_.subscribe(this, "kitti/nav_sat_fix", rmw_qos_profile);
-  subIMU_.subscribe(this, "kitti/imu", rmw_qos_profile);
+  subGPS_.subscribe(this, "kitti/oxts/gps/fix", rmw_qos_profile);
+  subIMU_.subscribe(this, "kitti/oxts/imu", rmw_qos_profile);
   sync_.registerCallback(&SlamNode::sync_callback, this);
 
   pubImg_ = create_publisher<sensor_msgs::msg::Image>("stereo_slam/annotated_img", qos);
